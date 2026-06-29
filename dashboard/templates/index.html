@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOTOSIRA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<style>
+:root{--bg:#0b0e1a;--card:#131728;--border:#1e2235;--cyan:#00d4ff;--green:#00ff88;--red:#ff4444;--orange:#ff8800;--yellow:#ffcc00;--muted:#444;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:var(--bg);color:#fff;padding:clamp(10px,2vw,20px);min-height:100vh;}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.logo{font-size:clamp(18px,3vw,26px);font-weight:700;color:var(--cyan);letter-spacing:3px;}
+.logo-sub{font-size:clamp(9px,1.2vw,11px);color:var(--muted);letter-spacing:1px;margin-top:3px;}
+.topright{text-align:right;}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);justify-content:flex-end;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.15}}
+.clock{font-size:11px;color:#555;font-family:monospace;margin-top:3px;}
+.logout{display:block;margin-top:5px;font-size:10px;color:#333;text-decoration:none;letter-spacing:1px;text-align:right;text-transform:uppercase;transition:color .15s;}
+.logout:hover{color:#ff4444;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(8px,1.5vw,14px);margin-bottom:clamp(8px,1.5vw,14px);}
+.grid2{display:grid;grid-template-columns:3fr 2fr;gap:clamp(8px,1.5vw,14px);margin-bottom:clamp(8px,1.5vw,14px);}
+@media(max-width:650px){.grid3{grid-template-columns:1fr 1fr;}.grid2{grid-template-columns:1fr;}}
+@media(max-width:400px){.grid3{grid-template-columns:1fr;}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:clamp(12px,2vw,18px);}
+.lbl{font-size:clamp(8px,1vw,10px);color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.big{font-size:clamp(22px,4vw,36px);font-weight:700;text-transform:uppercase;letter-spacing:2px;}
+.conf{font-size:clamp(30px,5vw,50px);font-weight:700;color:var(--cyan);}
+.sev-num{font-size:clamp(20px,3vw,28px);font-weight:700;}
+.sev-bar{height:5px;background:#1a1d2e;border-radius:3px;margin-top:10px;overflow:hidden;}
+.sev-fill{height:100%;border-radius:3px;width:0%;transition:width .6s,background .6s;}
+.sev-txt{font-size:10px;color:var(--muted);margin-top:5px;}
+.ts{font-size:10px;color:#333;margin-top:5px;}
+.action-txt{font-size:clamp(12px,1.8vw,15px);color:#ccc;line-height:1.6;}
+.wave{display:flex;align-items:center;gap:2px;height:clamp(32px,5vw,46px);margin-top:12px;overflow:hidden;}
+.wb{width:4px;border-radius:2px;background:var(--cyan);opacity:0.55;transition:height .25s;flex-shrink:0;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;}
+.sn{font-size:clamp(20px,3vw,28px);font-weight:700;}
+.ss{font-size:10px;color:var(--muted);margin-top:2px;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:clamp(8px,1.5vw,14px);}
+.btn{padding:10px 18px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#888;font-size:12px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .15s;font-family:Arial,sans-serif;}
+.btn:hover{background:#1e2235;color:#fff;}
+.btn.scan{border-color:#004433;color:var(--green);background:#001a11;}
+.btn.pause{border-color:#2a2500;color:var(--yellow);background:#111000;}
+.btn.danger{border-color:#2a0000;color:var(--red);background:#110000;}
+.btn.export{border-color:#002233;color:var(--cyan);background:#001122;}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.fb{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:10px;cursor:pointer;transition:all .15s;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;}
+.fb:hover,.fb.active{background:var(--card);color:#fff;border-color:#333;}
+.fb.fg.active{border-color:var(--green);color:var(--green);}
+.fb.fr.active{border-color:var(--red);color:var(--red);}
+.fb.fo.active{border-color:var(--orange);color:var(--orange);}
+.fb.fy.active{border-color:var(--yellow);color:var(--yellow);}
+.hcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:clamp(12px,2vw,18px);overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:clamp(10px,1.2vw,13px);min-width:360px;}
+th{text-align:left;color:#333;padding:7px 10px;border-bottom:1px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:1px;}
+td{padding:9px 10px;border-bottom:1px solid #0d1015;color:#888;}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;}
+.bg2{background:#002211;color:var(--green);}
+.br2{background:#220000;color:var(--red);}
+.bo2{background:#221100;color:var(--orange);}
+.by2{background:#1a1500;color:var(--yellow);}
+.toast{position:fixed;top:16px;right:16px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .3s;z-index:999;border:1px solid;}
+.toast.show{opacity:1;}
+.toast.warn{background:#1a0800;border-color:var(--orange);color:var(--orange);}
+.toast.crit{background:#1a0000;border-color:var(--red);color:var(--red);}
+.toast.ok{background:#001a0d;border-color:var(--green);color:var(--green);}
+.cg{color:var(--green);}.cr{color:var(--red);}.co{color:var(--orange);}.cy2{color:var(--yellow);}.cx{color:#555;}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="topbar">
+  <div>
+    <div class="logo">MOTOSIRA</div>
+    <div class="logo-sub">Motorcycle Sound Intelligent Recognition Assistant</div>
+  </div>
+  <div class="topright">
+    <div class="live"><div class="dot"></div>Live</div>
+    <div class="clock" id="clock">--:--:--</div>
+    <a href="/logout" class="logout">⏏ Logout</a>
+  </div>
+</div>
+
+<div class="grid3">
+  <div class="card">
+    <div class="lbl">Engine Status</div>
+    <div class="big cx" id="status">WAITING</div>
+    <div class="ts" id="timestamp">—</div>
+  </div>
+  <div class="card">
+    <div class="lbl">Confidence</div>
+    <div class="conf" id="confidence">—</div>
+  </div>
+  <div class="card">
+    <div class="lbl">Severity Level</div>
+    <div class="sev-num cx" id="severity">— / 3</div>
+    <div class="sev-bar"><div class="sev-fill" id="sevFill"></div></div>
+    <div class="sev-txt" id="sevTxt">Waiting for data</div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="lbl">Recommended Action</div>
+    <div class="action-txt" id="action">Waiting for engine audio data...</div>
+    <div class="lbl" style="margin-top:14px;">Audio Waveform</div>
+    <div class="wave" id="wave"></div>
+  </div>
+  <div class="card">
+    <div class="lbl">Session Stats</div>
+    <div class="stats-grid">
+      <div><div class="sn" id="tot">0</div><div class="ss">Total</div></div>
+      <div><div class="sn cg" id="nor">0</div><div class="ss">Normal</div></div>
+      <div><div class="sn co" id="mis">0</div><div class="ss">Misfire</div></div>
+      <div><div class="sn cr" id="kno">0</div><div class="ss">Knocking</div></div>
+      <div><div class="sn cy2" id="val">0</div><div class="ss">Valve Tick</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="btn-row">
+  <button class="btn scan" onclick="triggerScan()">⏺ Scan</button>
+  <button class="btn pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+  <button class="btn danger" onclick="clearSession()">✕ Clear</button>
+  <button class="btn export" onclick="exportCSV()">↓ Export CSV</button>
+</div>
+
+<div class="hcard">
+  <div class="lbl" style="margin-bottom:10px;">Recent Recordings</div>
+  <div class="filter-row">
+    <button class="fb active" onclick="setFilter('all',this)">All</button>
+    <button class="fb fg" onclick="setFilter('normal',this)">Normal</button>
+    <button class="fb fr" onclick="setFilter('knocking',this)">Knocking</button>
+    <button class="fb fo" onclick="setFilter('misfire',this)">Misfire</button>
+    <button class="fb fy" onclick="setFilter('valve_ticking',this)">Valve Tick</button>
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Time</th><th>Result</th><th>Confidence</th><th>Action</th></tr></thead>
+    <tbody id="tbody"><tr><td colspan="5" style="text-align:center;color:#333;padding:20px;">No recordings yet</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+const socket = io();
+let paused = false;
+let activeFilter = 'all';
+let stats = {total:0,normal:0,misfire:0,knocking:0,valve_ticking:0};
+let allRows = [];
+
+setInterval(()=>{
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+},1000);
+
+const waveEl = document.getElementById('wave');
+for(let i=0;i<44;i++){
+  const b=document.createElement('div');
+  b.className='wb';b.style.height='6px';waveEl.appendChild(b);
+}
+setInterval(()=>{
+  document.querySelectorAll('.wb').forEach(b=>{
+    b.style.height=(Math.random()*40+5)+'px';
+    b.style.opacity=(Math.random()*0.4+0.4).toFixed(2);
+  });
+},280);
+
+const CM={
+  normal:       {cls:'cg', sev:'0', pct:'5%',  bg:'#00ff88', txt:'No issues detected'},
+  knocking:     {cls:'cr', sev:'3', pct:'100%', bg:'#ff4444', txt:'Critical — immediate attention'},
+  misfire:      {cls:'co', sev:'2', pct:'66%',  bg:'#ff8800', txt:'Moderate — check soon'},
+  valve_ticking:{cls:'cy2',sev:'1', pct:'33%',  bg:'#ffcc00', txt:'Minor — monitor closely'},
+};
+const BM={normal:'bg2',knocking:'br2',misfire:'bo2',valve_ticking:'by2'};
+
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type+' show';
+  setTimeout(()=>t.className='toast',3000);
+}
+
+socket.on('new_result',function(data){
+  if(paused) return;
+  const c=CM[data.classification]||{cls:'cx',sev:'?',pct:'0%',bg:'#555',txt:'Unknown'};
+  const pct=Math.round(data.confidence*100);
+  const lbl=data.classification.replace('_',' ').toUpperCase();
+
+  document.getElementById('status').className='big '+c.cls;
+  document.getElementById('status').textContent=lbl;
+  document.getElementById('confidence').textContent=pct+'%';
+  document.getElementById('timestamp').textContent=data.timestamp;
+  document.getElementById('action').textContent=data.action;
+  document.getElementById('severity').className='sev-num '+c.cls;
+  document.getElementById('severity').textContent=c.sev+' / 3';
+  document.getElementById('sevFill').style.width=c.pct;
+  document.getElementById('sevFill').style.background=c.bg;
+  document.getElementById('sevTxt').textContent=c.txt;
+
+  stats.total++;
+  if(data.classification in stats) stats[data.classification]++;
+  document.getElementById('tot').textContent=stats.total;
+  document.getElementById('nor').textContent=stats.normal;
+  document.getElementById('mis').textContent=stats.misfire;
+  document.getElementById('kno').textContent=stats.knocking;
+  document.getElementById('val').textContent=stats.valve_ticking;
+
+  if(data.classification==='knocking') showToast('⚠ Knocking detected!','crit');
+  else if(data.classification==='misfire') showToast('⚠ Misfire detected!','warn');
+  else if(data.classification==='normal') showToast('✓ Engine normal','ok');
+
+  loadHistory();
+});
+
+function loadHistory(){
+  fetch('/api/history').then(r=>r.json()).then(data=>{
+    allRows=data;
+    renderTable();
+  });
+}
+
+function renderTable(){
+  const filtered=activeFilter==='all'?allRows:allRows.filter(r=>r.classification===activeFilter);
+  if(!filtered.length){
+    document.getElementById('tbody').innerHTML='<tr><td colspan="5" style="text-align:center;color:#333;padding:20px;">No recordings</td></tr>';
+    return;
+  }
+  document.getElementById('tbody').innerHTML=filtered.map(r=>`
+    <tr>
+      <td style="color:#333">#${r.id}</td>
+      <td>${r.timestamp}</td>
+      <td><span class="badge ${BM[r.classification]||''}">${r.classification.replace('_',' ')}</span></td>
+      <td style="color:var(--cyan)">${r.confidence}</td>
+      <td style="color:#555;font-size:11px">${r.action}</td>
+    </tr>`).join('');
+}
+
+function setFilter(f,el){
+  activeFilter=f;
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+
+function triggerScan(){
+  showToast('Manual scan triggered...','ok');
+  fetch('/api/latest').then(r=>r.json()).then(d=>{
+    if(d.classification!=='waiting') showToast('Last result: '+d.classification,'ok');
+  });
+}
+
+function togglePause(){
+  paused=!paused;
+  const btn=document.getElementById('pauseBtn');
+  btn.textContent=paused?'▶ Resume':'⏸ Pause';
+  btn.style.color=paused?'#00ff88':'#ffcc00';
+  showToast(paused?'Monitoring paused':'Monitoring resumed',paused?'warn':'ok');
+}
+
+function clearSession(){
+  stats={total:0,normal:0,misfire:0,knocking:0,valve_ticking:0};
+  ['tot','nor','mis','kno','val'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('status').className='big cx';
+  document.getElementById('status').textContent='WAITING';
+  document.getElementById('confidence').textContent='—';
+  document.getElementById('timestamp').textContent='—';
+  document.getElementById('action').textContent='Waiting for engine audio data...';
+  document.getElementById('severity').className='sev-num cx';
+  document.getElementById('severity').textContent='— / 3';
+  document.getElementById('sevFill').style.width='0%';
+  document.getElementById('sevTxt').textContent='Waiting for data';
+  allRows=[];renderTable();
+  showToast('Session cleared','ok');
+}
+
+function exportCSV(){
+  if(!allRows.length){showToast('No data to export','warn');return;}
+  window.location.href='/api/export';
+  showToast('CSV exported!','ok');
+}
+
+loadHistory();
+</script>
+</body>
+</html>
