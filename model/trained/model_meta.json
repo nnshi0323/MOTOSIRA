@@ -1,0 +1,13 @@
+{
+  "classes": [
+    "normal",
+    "knocking",
+    "misfire",
+    "valve_ticking"
+  ],
+  "n_features": 40,
+  "n_estimators": 100,
+  "training_samples": 200,
+  "cv_accuracy": 1.0,
+  "test_accuracy": 1.0
+}

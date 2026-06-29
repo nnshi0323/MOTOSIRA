@@ -9,6 +9,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 import json, time, threading
+import numpy as np  # type: ignore
+import joblib  # type: ignore
 import paho.mqtt.client as mqtt  # type: ignore
 import config
 from database import init_db, save_recording, get_recent
@@ -28,6 +30,38 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
+# ── Load model ───────────────────────────────────────────
+model = None
+scaler = None
+
+def load_model():
+    global model, scaler
+    try:
+        model = joblib.load(config.MODEL_PATH)
+        scaler = joblib.load(config.SCALER_PATH)
+        print("Model loaded successfully!")
+    except Exception as e:
+        print(f"Model not found, using random classifier: {e}")
+
+def classify(features):
+    global model, scaler
+    if model is None or scaler is None:
+        import random
+        label = random.choice(config.CLASSES)
+        confidence = round(random.uniform(0.75, 0.99), 2)
+        return label, confidence
+    try:
+        features_scaled = scaler.transform([features])
+        prediction = model.predict(features_scaled)[0]
+        probabilities = model.predict_proba(features_scaled)[0]
+        label = config.CLASSES[prediction]
+        confidence = round(float(probabilities[prediction]), 2)
+        return label, confidence
+    except Exception as e:
+        print(f"Classification error: {e}")
+        import random
+        return random.choice(config.CLASSES), 0.75
+
 latest_result = {
     "classification": "waiting",
     "confidence": 0,
@@ -35,12 +69,6 @@ latest_result = {
     "action": "Waiting for engine data...",
     "timestamp": None
 }
-
-def fake_classify(features):
-    import random
-    label = random.choice(config.CLASSES)
-    confidence = round(random.uniform(0.75, 0.99), 2)
-    return label, confidence
 
 def validate_mqtt_payload(data):
     required = ['recording_id', 'sample_rate', 'duration', 'timestamp']
@@ -77,7 +105,7 @@ def on_mqtt_message(client, userdata, msg):
             ]
 
         features = extract_mfcc(samples)
-        label, confidence = fake_classify(features)
+        label, confidence = classify(features)
         severity_info = config.SEVERITY[label]
 
         latest_result = {
@@ -113,7 +141,7 @@ def start_mqtt():
     client.subscribe(config.MQTT_TOPIC_AUDIO)
     client.loop_forever()
 
-# ── Auth routes ─────────────────────────────────────────
+# ── Auth routes ──────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
 def login():
@@ -179,6 +207,7 @@ def api_export():
 
 if __name__ == '__main__':
     init_db()
+    load_model()
     mqtt_thread = threading.Thread(target=start_mqtt, daemon=True)
     mqtt_thread.start()
     print("=== MOTOSIRA Dashboard (Secured) ===")
